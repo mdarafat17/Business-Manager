@@ -14,3 +14,4 @@ This contains everything you need to run your app locally.
    `npm run dev`
 # Business-Manager
 # mern-business-management
+# Business-Manager
