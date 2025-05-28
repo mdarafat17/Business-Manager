@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-commerce Business Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class', // Enable dark mode
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#3B82F6', // Blue 500
+              light: '#60A5FA', // Blue 400
+              dark: '#2563EB',  // Blue 600
+            },
+            secondary: '#10B981', // Emerald 500
+            accent: '#F59E0B',   // Amber 500
+            neutral: {
+              100: '#F3F4F6', // Gray 100
+              200: '#E5E7EB', // Gray 200
+              300: '#D1D5DB', // Gray 300
+              700: '#374151', // Gray 700
+              800: '#1F2937', // Gray 800
+              900: '#111827', // Gray 900
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.6.1",
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react": "https://esm.sh/react@^19.1.0",
+    "recharts": "https://esm.sh/recharts@^2.15.3",
+    "qrcode.react": "https://esm.sh/qrcode.react@^3.1.0",
+    "firebase/": "https://esm.sh/firebase@^11.8.1/"
+  }
+}
+</script>
+<style>
+  body {
+    @apply bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100;
+  }
+  /* Lock icon general style */
+  .lock-icon {
+    @apply text-amber-500; /* accent color */
+  }
+
+  /* Login Page Specific Styles */
+  .login-container {
+    min-height: 100vh;
+    @apply flex items-center justify-center bg-gradient-to-br from-primary-light via-primary to-primary-dark;
+  }
+  .login-card {
+     @apply bg-white dark:bg-neutral-800 p-8 rounded-xl shadow-2xl w-full max-w-md;
+  }
+
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    .print-area, .print-area * { /* General print area */
+      visibility: visible;
+    }
+    .print-area {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+    }
+    #print-invoice-area, #print-invoice-area * { /* Specific for invoice */
+        visibility: visible;
+    }
+    #print-invoice-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    .invoice-container-print { /* For the actual printed invoice, not the on-screen preview */
+        width: 148mm !important; 
+        height: auto !important; /* Allow content to flow for height */
+        min-height: 205mm !important; /* Maintain approx half A4 height */
+        margin: auto; 
+        padding: 10mm;
+        box-sizing: border-box;
+        font-size: 10pt !important;
+        background-color: white !important; /* Ensure white background for print */
+        color: black !important; /* Ensure black text for print */
+    }
+    .invoice-container-print .text-xs { font-size: 8pt !important; }
+    .invoice-container-print .text-sm { font-size: 9pt !important; }
+    .invoice-container-print .text-base { font-size: 10pt !important; }
+    .invoice-container-print .text-lg { font-size: 12pt !important; }
+    .invoice-container-print .text-xl { font-size: 14pt !important; }
+    .invoice-container-print img { max-width: 80px !important; max-height: 80px !important; }
+    .invoice-container-print .dark\\:bg-neutral-800 { background-color: white !important; } /* Override dark mode for print */
+    .invoice-container-print .dark\\:text-neutral-100 { color: black !important; } /* Override dark mode for print */
+    .invoice-container-print .dark\\:border-neutral-700 { border-color: #e5e7eb !important; } /* Light border for print */
+
+
+    .no-print {
+      display: none !important;
+    }
+    .print-table-container table {
+      width: 100% !important;
+      table-layout: auto !important; 
+    }
+    .print-table-container th, .print-table-container td {
+      page-break-inside: avoid !important;
+    }
+    .print-section {
+      page-break-before: auto;
+      page-break-after: auto;
+      page-break-inside: avoid;
+    }
+  }
+
+  /* Styles for PDF generation context */
+  .force-light-for-pdf {
+    background-color: white !important;
+    color: black !important;
+  }
+  .force-light-for-pdf div, 
+  .force-light-for-pdf p, 
+  .force-light-for-pdf span, 
+  .force-light-for-pdf h1, .force-light-for-pdf h2, .force-light-for-pdf h3, .force-light-for-pdf h4, 
+  .force-light-for-pdf th, .force-light-for-pdf td,
+  .force-light-for-pdf strong, .force-light-for-pdf b,
+  .force-light-for-pdf table, .force-light-for-pdf thead, .force-light-for-pdf tbody, .force-light-for-pdf tr,
+  .force-light-for-pdf li, .force-light-for-pdf ul, .force-light-for-pdf ol {
+    color: black !important; 
+    border-color: #cccccc !important; /* Lighten borders consistently */
+  }
+  .force-light-for-pdf img {
+    filter: none !important; /* Remove any dark mode filters */
+  }
+  /* Override specific Tailwind dark mode classes that might be on cloned elements */
+  .force-light-for-pdf .dark\\:bg-neutral-800,
+  .force-light-for-pdf .dark\\:bg-neutral-900,
+  .force-light-for-pdf .dark\\:bg-neutral-700,
+  .force-light-for-pdf .dark\\:bg-neutral-800\\/50 { /* handles opacity bg */
+      background-color: white !important;
+  }
+  .force-light-for-pdf .dark\\:text-neutral-100,
+  .force-light-for-pdf .dark\\:text-neutral-200,
+  .force-light-for-pdf .dark\\:text-neutral-300,
+  .force-light-for-pdf .dark\\:text-neutral-400,
+  .force-light-for-pdf .dark\\:text-neutral-500 {
+      color: black !important;
+  }
+  .force-light-for-pdf .dark\\:border-neutral-700,
+  .force-light-for-pdf .dark\\:border-neutral-600 {
+      border-color: #e5e7eb !important; /* light gray */
+  }
+  /* Ensure QR code SVG is black on white for PDF */
+  .force-light-for-pdf .qr-code-for-pdf svg {
+      background-color: white !important;
+  }
+  .force-light-for-pdf .qr-code-for-pdf svg path {
+      fill: black !important;
+  }
+  .force-light-for-pdf .bg-neutral-100 { background-color: #f0f0f0 !important; } /* example if table head had specific light bg */
+  .force-light-for-pdf .bg-white { background-color: white !important; }
+
+  /* Container for Report PDF generation */
+  .report-container-pdf {
+    width: 210mm !important; /* A4 width */
+    min-height: 290mm; /* A4 height, reduced slightly for margins, or use auto */
+    height: auto !important;
+    margin: 0 auto !important; /* Centering in case of direct body append visibility */
+    padding: 10mm !important; /* Inner padding */
+    box-sizing: border-box !important;
+    font-size: 9pt !important; /* Slightly smaller base font for reports */
+    background-color: white !important;
+    color: black !important;
+    overflow: hidden; /* To prevent scrollbars on the temp div */
+  }
+  .report-container-pdf .text-xs { font-size: 7pt !important; }
+  .report-container-pdf .text-sm { font-size: 8pt !important; }
+  .report-container-pdf .text-base { font-size: 9pt !important; } /* Default */
+  .report-container-pdf .text-lg { font-size: 11pt !important; }
+  .report-container-pdf .text-xl { font-size: 13pt !important; }
+  .report-container-pdf .text-2xl { font-size: 15pt !important; }
+  .report-container-pdf img { max-width: 100% !important; height: auto !important; }
+  /* Recharts specific overrides for PDF */
+  .report-container-pdf .recharts-wrapper {
+    overflow: visible !important; /* Prevent chart clipping if possible */
+  }
+  .report-container-pdf .recharts-surface {
+    overflow: visible !important;
+  }
+  
+
+  /* Basic styling for date picker */
+  .react-date-picker__wrapper {
+    border: 1px solid #D1D5DB !important; /* neutral-300 */
+    border-radius: 0.375rem !important; /* rounded-md */
+    padding: 0.5rem 0.75rem !important; /* py-2 px-3 */
+    background-color: white !important;
+  }
+  .dark .react-date-picker__wrapper {
+    border-color: #4B5563 !important; /* neutral-600 for dark */
+    background-color: #1F2937 !important; /* neutral-800 for dark */
+  }
+  .react-date-picker__inputGroup__input {
+     color: #111827 !important; /* neutral-900 */
+  }
+  .dark .react-date-picker__inputGroup__input {
+     color: #F3F4F6 !important; /* neutral-100 for dark */
+  }
+  .react-calendar {
+    background-color: white !important;
+    border: 1px solid #D1D5DB !important;
+    border-radius: 0.375rem;
+  }
+  .dark .react-calendar {
+    background-color: #1F2937 !important; /* neutral-800 */
+    border-color: #4B5563 !important; /* neutral-600 */
+  }
+  .react-calendar__tile {
+    color: #111827 !important;
+  }
+  .dark .react-calendar__tile {
+    color: #F3F4F6 !important;
+  }
+  .react-calendar__tile:hover {
+    background-color: #E5E7EB !important; /* neutral-200 */
+  }
+  .dark .react-calendar__tile:hover {
+    background-color: #374151 !important; /* neutral-700 */
+  }
+  .react-calendar__tile--active {
+    background-color: #3B82F6 !important; /* primary */
+    color: white !important;
+  }
+  .dark .react-calendar__tile--active {
+    background-color: #2563EB !important; /* primary-dark */
+  }
+  .react-calendar__navigation button {
+    color: #3B82F6 !important; /* primary */
+  }
+  .dark .react-calendar__navigation button {
+    color: #60A5FA !important; /* primary-light */
+  }
+  /* For Firebase phone auth recaptcha - kept in case it's used by something else, but auth is removed */
+  #recaptcha-container { 
+    margin-top: 1rem; margin-bottom: 1rem; 
+    display: flex; justify-content: center;
+  }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <!-- Removed: <div id="recaptcha-container"></div> -->
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html><link rel="stylesheet" href="index.css">
+<script src="index.tsx" type="module"></script>
